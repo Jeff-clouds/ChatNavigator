@@ -13,6 +13,7 @@ unused/
 .idea/
 *.swp
 *.swo
+*.py
 
 # Chrome Extension specific
 *.pem
@@ -34,4 +35,3 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
-*.md
