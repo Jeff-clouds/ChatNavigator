@@ -1,112 +1,115 @@
 window.Pipeline = class Pipeline {
     constructor() {
-        this.siteType = getCurrentSite();
-        this.selectors = SELECTORS[this.siteType];
+        this.config = this._getPlatformConfig(window.location.href);
+        if (this.config) {
+            console.log(`ChatNavigator: Identified platform ${this.config.name}`);
+        } else {
+            console.log('ChatNavigator: No matching platform found');
+        }
     }
 
-    // 核心提取逻辑
-    extract() {
-        if (!this.selectors) return [];
+    _getPlatformConfig(url) {
+        for (const key in window.SELECTORS) {
+            const config = window.SELECTORS[key];
+            if (config.urlPatterns) {
+                for (const pattern of config.urlPatterns) {
+                    if (pattern instanceof RegExp) {
+                        if (pattern.test(url)) return config;
+                    } else if (typeof pattern === 'string') {
+                        if (url.includes(pattern)) return config;
+                    }
+                }
+            }
+        }
+        return null;
+    }
 
-        const outline = [];
+    extract() {
+        if (!this.config) return [];
         
-        if (this.siteType === 'CHATGPT') {
-            this._extractChatGPT(outline);
-        } else if (this.siteType === 'DOUBAO') {
-            this._extractDoubao(outline);
-        } else {
-            // 通用处理逻辑 (DeepSeek, Yuanbao, Gemini, Grok)
-            this._extractStandard(outline);
+        const outline = [];
+        const { selectors } = this.config;
+
+        // 1. 优先尝试嵌套模式 (Conversation Item Mode)
+        if (selectors.conversation) {
+            const items = document.querySelectorAll(selectors.conversation);
+            if (items.length > 0) {
+                this._extractNested(items, outline);
+                return outline;
+            }
         }
 
+        // 2. 回退到扁平模式 (Flat Mode)
+        this._extractFlat(outline);
         return outline;
     }
 
-    // 处理标准结构的问答 (DeepSeek, Gemini, Grok, Yuanbao)
-    _extractStandard(outline) {
-        const { QUESTION, ANSWER } = this.selectors;
-        const pairs = document.querySelectorAll(`${QUESTION}, ${ANSWER}`);
-        
-        pairs.forEach((element, index) => {
-            if (!element.id) element.id = generateId();
+    _extractNested(items, outline) {
+        const { selectors } = this.config;
 
-            if (element.matches(QUESTION)) {
-                outline.push({
-                    text: `问题 ${Math.floor(index/2) + 1}: ${element.textContent.trim()}`,
-                    level: 'h1',
-                    id: element.id,
-                    type: 'question'
-                });
-            } else {
-                this._processAnswerHeadings(element, outline);
+        items.forEach((item, index) => {
+            const questionEl = item.querySelector(selectors.question);
+            const answerEl = item.querySelector(selectors.answer);
+
+            if (questionEl && answerEl) {
+                this._addQuestionToOutline(questionEl, index, outline);
+                this._processAnswerHeadings(answerEl, outline);
             }
         });
     }
 
-    // ChatGPT 特殊处理 (DOM 结构分离)
-    _extractChatGPT(outline) {
-        const questions = document.querySelectorAll(this.selectors.QUESTION);
-        const answers = document.querySelectorAll(this.selectors.ANSWER);
-        
-        questions.forEach((question, index) => {
-            if (!question.id) question.id = generateId();
-            
-            outline.push({
-                text: `问题 ${index + 1}: ${question.textContent.trim()}`,
-                level: 'h1',
-                id: question.id,
-                type: 'question'
-            });
+    _extractFlat(outline) {
+        const { selectors } = this.config;
+        const questions = document.querySelectorAll(selectors.question);
+        const answers = document.querySelectorAll(selectors.answer);
+        const count = Math.min(questions.length, answers.length);
 
-            const answer = answers[index];
-            if (answer) {
-                if (!answer.id) answer.id = generateId();
-                this._processAnswerHeadings(answer, outline);
-            }
-        });
-    }
+        for (let i = 0; i < count; i++) {
+            const questionEl = questions[i];
+            const answerEl = answers[i];
 
-    // 豆包特殊处理
-    _extractDoubao(outline) {
-        const questions = document.querySelectorAll(this.selectors.QUESTION);
-        const answers = document.querySelectorAll(this.selectors.ANSWER);
-        
-        questions.forEach((question, index) => {
-            if (!question.id) question.id = generateId();
-            
-            const questionText = question.textContent.trim().replace(/\s+/g, ' ');
-            outline.push({
-                text: `问题 ${index + 1}: ${questionText}`,
-                level: 'h1',
-                id: question.id,
-                type: 'question'
-            });
-
-            const answer = answers[index];
-            if (answer) {
-                if (!answer.id) answer.id = generateId();
-                this._processAnswerHeadings(answer, outline);
-            }
-        });
-    }
-
-    // 通用标题提取
-    _processAnswerHeadings(answerElement, outline) {
-        let headingsConfig = this.selectors.HEADINGS;
-        
-        // 元宝特殊处理：区分深度/简单回答
-        if (this.siteType === 'YUANBAO') {
-             if (answerElement.querySelector(this.selectors.DEEP_ANSWER.CONTAINER)) {
-                 headingsConfig = this.selectors.DEEP_ANSWER.HEADINGS;
-             } else {
-                 headingsConfig = this.selectors.SIMPLE_ANSWER.HEADINGS;
-             }
+            this._addQuestionToOutline(questionEl, i, outline);
+            this._processAnswerHeadings(answerEl, outline);
         }
+    }
 
+    _addQuestionToOutline(questionEl, index, outline) {
+        if (!questionEl.id) questionEl.id = generateId();
+        
+        let text = questionEl.textContent.trim();
+        if (text.length > 50) text = text.substring(0, 50) + '...';
+        
+        outline.push({
+            text: `问题 ${index + 1}: ${text}`,
+            level: 'h1',
+            id: questionEl.id,
+            type: 'question'
+        });
+    }
+
+    _processAnswerHeadings(answerElement, outline) {
+        const { selectors, features } = this.config;
+        
+        // 默认 H1-H6
+        const headingsConfig = selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
         const allHeadings = [];
+
         headingsConfig.forEach((selector, index) => {
             const headings = answerElement.querySelectorAll(selector);
             headings.forEach(heading => {
+                // 特性处理：如果开启了 removeThinking，且该标题位于 thinking 容器内，则跳过
+                if (features && features.removeThinking && selectors.thinking) {
+                    if (heading.closest(selectors.thinking)) {
+                        return; 
+                    }
+                }
+                
+                // 忽略辅助阅读文本 (如 "ChatGPT说")
+                if (heading.classList.contains('sr-only')) return;
+
+                // 跳过空标题
+                if (!heading.textContent.trim()) return;
+
                 allHeadings.push({
                     element: heading,
                     level: index + 1
@@ -114,10 +117,12 @@ window.Pipeline = class Pipeline {
             });
         });
 
+        // 按文档位置排序
         const sortedHeadings = sortElementsByDocumentPosition(allHeadings);
 
         sortedHeadings.forEach(({element, level}) => {
             if (!element.id) element.id = generateId();
+            
             outline.push({
                 text: element.textContent.trim(),
                 level: `h${level}`,
@@ -126,4 +131,4 @@ window.Pipeline = class Pipeline {
             });
         });
     }
-}
+};
