@@ -1,4 +1,4 @@
-# AI PageOutliner 浏览器扩展
+# AI_Chat_outline 浏览器扩展
 
 一个Chrome扩展，为AI对话平台自动生成大纲，支持快速导航和阅读位置定位。
 
@@ -20,10 +20,26 @@
 - Grok (`*.grok.com`)
 - 豆包 AI (`*.doubao.com`)
 
-## 安装方法
+## 📥 下载安装
 
-1. 在Chrome中以开发者模式加载解压的扩展
-2. 访问支持的AI聊天平台即可使用
+### 方式一：应用商店安装（推荐）
+
+- **Chrome 用户**：[前往 Chrome 应用商店下载](https://chromewebstore.google.com/detail/ai-chatnavigator/oaojjennjgmfnegjgnbikipnnddoiomg)
+- **Edge 用户**：[前往 Edge 插件商店下载](https://microsoftedge.microsoft.com/addons/detail/ai-chatnavigator/nimemminahdhnacieiaejaohgkehcned)
+
+### 方式二：手动安装（开发者模式）
+
+如果您想体验最新开发版功能：
+
+1. 克隆本项目到本地：
+   ```bash
+   git clone https://github.com/Jeff-clouds/ChatNavigator.git
+   ```
+2. 直接加载项目目录即可，无需额外构建步骤。
+
+3. 打开 Chrome/Edge 浏览器，进入扩展管理页 (`chrome://extensions/` 或 `edge://extensions/`)。
+4. 开启右上角的 **"开发者模式"**。
+5. 点击 **"加载已解压的扩展程序"**，选择本项目文件夹。
 
 ## 使用方法
 
@@ -43,13 +59,29 @@
 
 ```
 ├── manifest.json
-├── background.js
-├── content.js
-├── sidepanel.js
-├── sidepanel.html
-├── icon48.png
-├── icon128.png
-└── README.md
+├── README.md
+├── ARCHITECTURE.md
+├── CHANGELOG.md
+├── privacy-policy.md
+├── .gitignore
+├── public/
+│   └── assets/
+│       ├── icon128.png
+│       ├── icon48.png
+│       ├── alipay.png
+│       └── wechat-pay.jpg
+├── src/
+│   ├── config/
+│   │   └── selectors.js
+│   ├── core/
+│   │   ├── background.js
+│   │   ├── content.js
+│   │   ├── pipeline.js
+│   │   ├── sidepanel.html
+│   │   └── sidepanel.js
+│   └── utils/
+│       └── common.js
+
 ```
 
 ## 开发
@@ -61,6 +93,13 @@
 ## 已知问题
 
 ChatGPT的深度研究的回答会出现整体目录对应错乱。
+
+## 赞赏
+
+如果您觉得此项目对您有帮助，请考虑给我一杯咖啡 ☕️。
+
+<img src="public/assets/wechat-pay.jpg" width="200" height="200" />
+<img src="public/assets/alipay.png" width="200" height="200" />
 
 ## 许可证
 
