@@ -15,7 +15,9 @@
     "*://*.chatgpt.com/*",
     "*://*.gemini.google.com/*",
     "*://*.grok.com/*",
-    "*://*.doubao.com/*"
+    "*://*.doubao.com/*",
+    "*://*.kimi.com/*",
+    "*://*.kimi.moonshot.cn/*"
   ],
   "side_panel": {
     "default_path": "src/core/sidepanel.html"

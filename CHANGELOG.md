@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ✨ 新功能
+
+- 添加了对 Kimi (`*.kimi.com`) 网站的支持
+
+### 📄 许可证
+
+- 添加了详细的 MIT 许可证文件，明确项目的开源协议条款
+
+
 ## [1.4.0]
 
 ### ✨ 新功能

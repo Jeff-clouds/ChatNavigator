@@ -11,7 +11,9 @@ chrome.runtime.onInstalled.addListener(async () => {
             "*://*.chatgpt.com/*",
             "*://*.gemini.google.com/*",
             "*://*.grok.com/*",
-            "*://*.doubao.com/*"
+            "*://*.doubao.com/*",
+            "*://*.kimi.com/*",
+            "*://*.kimi.moonshot.cn/*"
         ]
     });
     
@@ -41,7 +43,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                             tab.url.includes('chatgpt.com') ||
                             tab.url.includes('gemini.google.com') ||
                             tab.url.includes('grok.com') ||
-                            tab.url.includes('doubao.com');
+                            tab.url.includes('doubao.com') ||
+                            tab.url.includes('kimi.com') ||
+                            tab.url.includes('kimi.moonshot.cn');
         
         if (isMatchingUrl) {
             chrome.scripting.executeScript({
@@ -65,7 +69,9 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
                          tab.url.includes('chatgpt.com') ||
                          tab.url.includes('gemini.google.com') ||
                          tab.url.includes('grok.com') ||
-                         tab.url.includes('doubao.com');
+                         tab.url.includes('doubao.com') ||
+                         tab.url.includes('kimi.com') ||
+                         tab.url.includes('kimi.moonshot.cn');
     
     if (isMatchingUrl) {
         // 注入 content script
@@ -98,7 +104,9 @@ chrome.action.onClicked.addListener(async (tab) => {
                          tab.url.includes('chatgpt.com') ||
                          tab.url.includes('gemini.google.com') ||
                          tab.url.includes('grok.com') ||
-                         tab.url.includes('doubao.com');
+                         tab.url.includes('doubao.com') ||
+                         tab.url.includes('kimi.com') ||
+                         tab.url.includes('kimi.moonshot.cn');
     
     if (isMatchingUrl) {
         // 注入 content script

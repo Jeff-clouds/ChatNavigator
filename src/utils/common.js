@@ -25,13 +25,4 @@ window.sortElementsByDocumentPosition = function(elements) {
     });
 }
 
-// 判断当前网站类型
-window.getCurrentSite = function(url = window.location.href) {
-    if (SITE_PATTERNS.DEEPSEEK.test(url)) return 'DEEPSEEK';
-    if (SITE_PATTERNS.YUANBAO.test(url)) return 'YUANBAO';
-    if (SITE_PATTERNS.CHATGPT.test(url)) return 'CHATGPT';
-    if (SITE_PATTERNS.GEMINI.test(url)) return 'GEMINI';
-    if (SITE_PATTERNS.GROK.test(url)) return 'GROK';
-    if (SITE_PATTERNS.DOUBAO.test(url)) return 'DOUBAO';
-    return 'OTHER';
-}
+

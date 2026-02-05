@@ -54,13 +54,71 @@
         });
     }
 
+    // 查找滚动父容器
+    function getScrollParent(element) {
+        if (!element) return null;
+        
+        // 优先查找 Kimi 的特定滚动容器
+        const kimiScrollContainer = element.closest('.chat-detail-main');
+        if (kimiScrollContainer) {
+            return kimiScrollContainer;
+        }
+
+        let parent = element.parentElement;
+        while (parent) {
+            const style = window.getComputedStyle(parent);
+            const overflowY = style.overflowY;
+            const isScrollable = overflowY !== 'visible' && overflowY !== 'hidden';
+            
+            if (isScrollable && parent.scrollHeight > parent.clientHeight) {
+                return parent;
+            }
+            parent = parent.parentElement;
+        }
+        return document.scrollingElement || document.documentElement;
+    }
+
+    // 自定义滚动逻辑
+    function smoothScrollToElement(element) {
+        const scrollParent = getScrollParent(element);
+        
+        if (scrollParent && scrollParent !== document.documentElement && scrollParent !== document.body) {
+            // 计算相对位置
+            const elementRect = element.getBoundingClientRect();
+            const parentRect = scrollParent.getBoundingClientRect();
+            
+            // 目标位置 = 当前滚动位置 + 元素相对于视口的 top - 容器相对于视口的 top - 容器高度的一半 + 元素高度的一半
+            // 简化为：使元素居中
+            const offsetTop = elementRect.top - parentRect.top;
+            const targetScrollTop = scrollParent.scrollTop + offsetTop - (scrollParent.clientHeight / 2) + (element.clientHeight / 2);
+            
+            scrollParent.scrollTo({
+                top: targetScrollTop,
+                behavior: 'smooth'
+            });
+        } else {
+            // 回退到默认行为
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
     // 消息处理函数
     function handleMessage(message, sender, sendResponse) {
         switch (message.type) {
             case 'scrollTo':
-                const element = document.getElementById(message.elementId);
+                let element = document.getElementById(message.elementId);
+                // 备用方案：如果通过 ID 找不到，尝试使用 metadata 查找
+                if (!element && message.metadata) {
+                    element = pipeline.findElement(message.metadata);
+                    // 找到后尝试补回 ID，方便后续高亮
+                    if (element && message.elementId) {
+                         element.id = message.elementId;
+                    }
+                }
+
                 if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    smoothScrollToElement(element);
+                    
                     // 暂时高亮
                     element.style.transition = 'background-color 0.5s';
                     const originalBg = element.style.backgroundColor;

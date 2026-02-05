@@ -54,6 +54,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 siteInfo.textContent = '当前网站: Grok';
             } else if (url.includes('doubao.com')) {
                 siteInfo.textContent = '当前网站: 豆包 AI';
+            } else if (url.includes('kimi.com') || url.includes('kimi.moonshot.cn')) {
+                siteInfo.textContent = '当前网站: Kimi 智能助手';
             } else {
                 siteInfo.textContent = '当前网站: 普通网页';
             }
@@ -158,6 +160,10 @@ function renderQuestionGroup(question, answers, container) {
     const questionDiv = document.createElement('div');
     questionDiv.className = `outline-item ${question.level} ${question.type}`;
     questionDiv.setAttribute('data-element-id', question.id);
+    // 存储元数据
+    if (question.metadata) {
+        questionDiv.dataset.metadata = JSON.stringify(question.metadata);
+    }
     
     // 创建展开/收起图标
     const toggle = document.createElement('span');
@@ -187,7 +193,8 @@ function renderQuestionGroup(question, answers, container) {
             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     type: 'scrollTo',
-                    elementId: question.id
+                    elementId: question.id,
+                    metadata: question.metadata
                 });
             });
         }
@@ -210,6 +217,10 @@ function renderQuestionGroup(question, answers, container) {
         answerDiv.className = `outline-item ${answer.level} ${answer.type}`;
         answerDiv.textContent = answer.text;
         answerDiv.setAttribute('data-element-id', answer.id);
+        // 存储元数据
+        if (answer.metadata) {
+            answerDiv.dataset.metadata = JSON.stringify(answer.metadata);
+        }
         
         // 设置答案样式
         answerDiv.style.color = '#202124';
@@ -219,7 +230,8 @@ function renderQuestionGroup(question, answers, container) {
             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     type: 'scrollTo',
-                    elementId: answer.id
+                    elementId: answer.id,
+                    metadata: answer.metadata
                 });
             });
         });
@@ -351,6 +363,11 @@ function showErrorMessage(container, message) {
                     <li>
                         <a href="https://doubao.com/" target="_blank" style="color: #1a73e8; text-decoration: none;">
                             豆包 AI
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://kimi.moonshot.cn/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                            Kimi 智能助手
                         </a>
                     </li>
                 </ul>

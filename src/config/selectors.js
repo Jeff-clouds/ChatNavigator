@@ -93,6 +93,18 @@ const grokConfig = {
     features: {}
 };
 
+const kimiConfig = {
+    name: 'Kimi',
+    urlPatterns: ['kimi.com'],
+    selectors: {
+        conversation: null, // Kimi 没有嵌套的问答结构，所有问答在同一层级
+        question: '.user-content',
+        answer: '.chat-content-item.chat-content-item-assistant .markdown-container, .markdown-body .markdown-container, [class*="assistant"] .markdown-container',
+        HEADINGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', '[id*="heading"]', '[class*="title"]', '[class*="header"]']
+    },
+    features: {}
+};
+
 // 导出配置到 window 对象
 window.SELECTORS = {
     DEEPSEEK: deepseekConfig,
@@ -100,7 +112,8 @@ window.SELECTORS = {
     CHATGPT: chatgptConfig,
     DOUBAO: doubaoConfig,
     GEMINI: geminiConfig,
-    GROK: grokConfig
+    GROK: grokConfig,
+    KIMI: kimiConfig
 };
 
 // 保持兼容性的正则模式 (供 common.js 使用)
@@ -110,5 +123,6 @@ window.SITE_PATTERNS = {
     CHATGPT: /chatgpt\.com/,
     GEMINI: /gemini\.google\.com/,
     GROK: /grok\.com/,
-    DOUBAO: /doubao\.com/
+    DOUBAO: /doubao\.com/,
+    KIMI: /kimi\.(com|moonshot\.cn)/
 };

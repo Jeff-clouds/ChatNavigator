@@ -19,6 +19,7 @@
 - Google Gemini (`*.gemini.google.com`)
 - Grok (`*.grok.com`)
 - 豆包 AI (`*.doubao.com`)
+- Kimi (`*.kimi.com`)
 
 ## 📥 下载安装
 

@@ -53,28 +53,44 @@ window.Pipeline = class Pipeline {
 
             if (questionEl && answerEl) {
                 this._addQuestionToOutline(questionEl, index, outline);
-                this._processAnswerHeadings(answerEl, outline);
+                this._processAnswerHeadings(answerEl, outline, index);
             }
         });
     }
 
     _extractFlat(outline) {
         const { selectors } = this.config;
-        const questions = document.querySelectorAll(selectors.question);
-        const answers = document.querySelectorAll(selectors.answer);
-        const count = Math.min(questions.length, answers.length);
+        const questions = Array.from(document.querySelectorAll(selectors.question));
+        const answers = Array.from(document.querySelectorAll(selectors.answer));
 
-        for (let i = 0; i < count; i++) {
-            const questionEl = questions[i];
-            const answerEl = answers[i];
+        // 组合所有元素并保留原始索引
+        const items = [
+            ...questions.map((el, i) => ({ type: 'question', element: el, index: i })),
+            ...answers.map((el, i) => ({ type: 'answer', element: el, index: i }))
+        ];
 
-            this._addQuestionToOutline(questionEl, i, outline);
-            this._processAnswerHeadings(answerEl, outline);
-        }
+        // 按文档位置排序
+        items.sort((a, b) => {
+            const position = a.element.compareDocumentPosition(b.element);
+            if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+            if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+            return 0;
+        });
+
+        // 按顺序处理
+        items.forEach(item => {
+            if (item.type === 'question') {
+                this._addQuestionToOutline(item.element, item.index, outline);
+            } else if (item.type === 'answer') {
+                this._processAnswerHeadings(item.element, outline, item.index);
+            }
+        });
     }
 
     _addQuestionToOutline(questionEl, index, outline) {
-        if (!questionEl.id) questionEl.id = generateId();
+        // 使用稳定 ID
+        const stableId = `cn-q-${index}`;
+        if (questionEl.id !== stableId) questionEl.id = stableId;
         
         let text = questionEl.textContent.trim();
         if (text.length > 50) text = text.substring(0, 50) + '...';
@@ -83,11 +99,15 @@ window.Pipeline = class Pipeline {
             text: `问题 ${index + 1}: ${text}`,
             level: 'h1',
             id: questionEl.id,
-            type: 'question'
+            type: 'question',
+            metadata: {
+                type: 'question',
+                index: index
+            }
         });
     }
 
-    _processAnswerHeadings(answerElement, outline) {
+    _processAnswerHeadings(answerElement, outline, answerIndex) {
         const { selectors, features } = this.config;
         
         // 默认 H1-H6
@@ -120,15 +140,60 @@ window.Pipeline = class Pipeline {
         // 按文档位置排序
         const sortedHeadings = sortElementsByDocumentPosition(allHeadings);
 
-        sortedHeadings.forEach(({element, level}) => {
-            if (!element.id) element.id = generateId();
+        sortedHeadings.forEach(({element, level}, headingIndex) => {
+            // 使用稳定 ID
+            const stableId = `cn-a-${answerIndex}-h-${headingIndex}`;
+            if (element.id !== stableId) element.id = stableId;
             
             outline.push({
                 text: element.textContent.trim(),
                 level: `h${level}`,
                 id: element.id,
-                type: 'answer'
+                type: 'answer',
+                metadata: {
+                    type: 'answer',
+                    answerIndex: answerIndex,
+                    headingIndex: headingIndex
+                }
             });
         });
+    }
+
+    // 根据元数据查找元素
+    findElement(metadata) {
+        if (!this.config || !metadata) return null;
+        const { selectors } = this.config;
+
+        if (metadata.type === 'question') {
+            const questions = document.querySelectorAll(selectors.question);
+            return questions[metadata.index] || null;
+        } else if (metadata.type === 'answer') {
+            const answers = document.querySelectorAll(selectors.answer);
+            const answerEl = answers[metadata.answerIndex];
+            if (!answerEl) return null;
+
+            // 重新查找该回答下的所有标题
+            const headingsConfig = selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+            const allHeadings = [];
+            
+            // 需要使用与 _processAnswerHeadings 相同的逻辑来收集标题，确保索引一致
+            const { features } = this.config;
+            headingsConfig.forEach((selector, index) => {
+                const headings = answerEl.querySelectorAll(selector);
+                headings.forEach(heading => {
+                    if (features && features.removeThinking && selectors.thinking) {
+                        if (heading.closest(selectors.thinking)) return; 
+                    }
+                    if (heading.classList.contains('sr-only')) return;
+                    if (!heading.textContent.trim()) return;
+                    allHeadings.push({ element: heading, level: index + 1 });
+                });
+            });
+
+            const sortedHeadings = sortElementsByDocumentPosition(allHeadings);
+            const target = sortedHeadings[metadata.headingIndex];
+            return target ? target.element : null;
+        }
+        return null;
     }
 };

@@ -30,6 +30,10 @@
 - DeepSeek Chat (`*.deepseek.com`)
 - 腾讯元宝AI (`*.yuanbao.tencent.com`)
 - ChatGPT (`*.chatgpt.com`)
+- Google Gemini (`*.gemini.google.com`)
+- Grok (`*.grok.com`)
+- 豆包 AI (`*.doubao.com`)
+- Kimi (`*.kimi.com`)
 
 ### 4. 数据安全
 
@@ -77,6 +81,10 @@ This extension only operates on:
 - DeepSeek Chat (`*.deepseek.com`)
 - Tencent Yuanbao AI (`*.yuanbao.tencent.com`)
 - ChatGPT (`*.chatgpt.com`)
+- Google Gemini (`*.gemini.google.com`)
+- Grok (`*.grok.com`)
+- 豆包 AI (`*.doubao.com`)
+- Kimi (`*.kimi.com`)
 
 ### 4. Data Security
 
