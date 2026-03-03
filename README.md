@@ -1,5 +1,7 @@
 # AI_Chat_outline 浏览器扩展
 
+[![Star History Chart](https://api.star-history.com/svg?repos=Jeff-clouds/ChatNavigator&type=Date)](https://star-history.com/#Jeff-clouds/ChatNavigator&Date)
+
 一个Chrome扩展，为AI对话平台自动生成大纲，支持快速导航和阅读位置定位。
 
 ## 功能特点
