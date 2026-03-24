@@ -14,10 +14,11 @@
 
     // 提取大纲并发送
     window.extractAndSendOutline = function() {
-        const outline = pipeline.extract();
+        const result = pipeline.extract();
         chrome.runtime.sendMessage({
             type: 'outline',
-            outline: outline
+            outline: result.outline,
+            diagnostics: result.diagnostics
         });
         
         // 初始化阅读位置检测

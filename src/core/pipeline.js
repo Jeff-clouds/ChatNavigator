@@ -4,19 +4,29 @@ window.Pipeline = class Pipeline {
         if (this.config) {
             console.log(`ChatNavigator: Identified platform ${this.config.name}`);
         } else {
-            console.log('ChatNavigator: No matching platform found');
+            // 回退到通用配置
+            this.config = window.SELECTORS.GENERIC;
+            this.platformId = 'GENERIC';
+            console.log('ChatNavigator: No matching platform found, using Generic mode');
         }
     }
 
     _getPlatformConfig(url) {
         for (const key in window.SELECTORS) {
+            if (key === 'GENERIC') continue;
             const config = window.SELECTORS[key];
             if (config.urlPatterns) {
                 for (const pattern of config.urlPatterns) {
                     if (pattern instanceof RegExp) {
-                        if (pattern.test(url)) return config;
+                        if (pattern.test(url)) {
+                            this.platformId = key;
+                            return config;
+                        }
                     } else if (typeof pattern === 'string') {
-                        if (url.includes(pattern)) return config;
+                        if (url.includes(pattern)) {
+                            this.platformId = key;
+                            return config;
+                        }
                     }
                 }
             }
@@ -25,43 +35,75 @@ window.Pipeline = class Pipeline {
     }
 
     extract() {
-        if (!this.config) return [];
-        
-        const outline = [];
-        const { selectors } = this.config;
-
-        // 1. 优先尝试嵌套模式 (Conversation Item Mode)
-        if (selectors.conversation) {
-            const items = document.querySelectorAll(selectors.conversation);
-            if (items.length > 0) {
-                this._extractNested(items, outline);
-                return outline;
+        const diagnostics = {
+            platform: this.platformId,
+            url: window.location.href,
+            configFound: !!this.config,
+            strategy: 'unknown',
+            error: null,
+            stats: {
+                conversations: 0,
+                questions: 0,
+                answers: 0,
+                headings: 0
             }
-        }
+        };
 
-        // 2. 回退到扁平模式 (Flat Mode)
-        this._extractFlat(outline);
-        return outline;
+        try {
+            if (!this.config) return { outline: [], diagnostics };
+            
+            const outline = [];
+
+            // 1. 尝试识别对话容器 (Conversation Item Mode)
+            const items = window.SELECTOR_MANAGER.getElements(this.platformId, 'conversation');
+            diagnostics.stats.conversations = items.length;
+
+            if (items.length > 0) {
+                diagnostics.strategy = 'nested';
+                this._extractNested(items, outline);
+                
+                if (outline.length > 0) {
+                    this._fillStats(outline, diagnostics);
+                    return { outline, diagnostics };
+                }
+            }
+
+            // 2. 回退到扁平模式 (Flat Mode)
+            diagnostics.strategy = 'flat';
+            this._extractFlat(outline);
+            this._fillStats(outline, diagnostics);
+            
+            return { outline, diagnostics };
+        } catch (err) {
+            console.error('ChatNavigator: Extraction error', err);
+            diagnostics.error = err.message;
+            return { outline: [], diagnostics };
+        }
+    }
+
+    _fillStats(outline, diagnostics) {
+        outline.forEach(item => {
+            if (item.type === 'question') diagnostics.stats.questions++;
+            else if (item.type === 'answer') diagnostics.stats.headings++;
+        });
+        // 注意：这里的 answers 数量在扁平模式下不直接等于 outline 项数
     }
 
     _extractNested(items, outline) {
-        const { selectors } = this.config;
-
         items.forEach((item, index) => {
-            const questionEl = item.querySelector(selectors.question);
-            const answerEl = item.querySelector(selectors.answer);
+            const questions = window.SELECTOR_MANAGER.getElements(this.platformId, 'question', item);
+            const answers = window.SELECTOR_MANAGER.getElements(this.platformId, 'answer', item);
 
-            if (questionEl && answerEl) {
-                this._addQuestionToOutline(questionEl, index, outline);
-                this._processAnswerHeadings(answerEl, outline, index);
+            if (questions.length > 0 && answers.length > 0) {
+                this._addQuestionToOutline(questions[0], index, outline);
+                this._processAnswerHeadings(answers[0], outline, index);
             }
         });
     }
 
     _extractFlat(outline) {
-        const { selectors } = this.config;
-        const questions = Array.from(document.querySelectorAll(selectors.question));
-        const answers = Array.from(document.querySelectorAll(selectors.answer));
+        const questions = window.SELECTOR_MANAGER.getElements(this.platformId, 'question');
+        const answers = window.SELECTOR_MANAGER.getElements(this.platformId, 'answer');
 
         // 组合所有元素并保留原始索引
         const items = [
@@ -108,18 +150,21 @@ window.Pipeline = class Pipeline {
     }
 
     _processAnswerHeadings(answerElement, outline, answerIndex) {
-        const { selectors, features } = this.config;
+        const { features } = this.config;
         
-        // 默认 H1-H6
-        const headingsConfig = selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+        // 默认 H1-H6 或配置的标题选择器
+        const headingsConfig = this.config.selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
         const allHeadings = [];
 
         headingsConfig.forEach((selector, index) => {
+            // 使用智能提取或直接查询
             const headings = answerElement.querySelectorAll(selector);
+            
             headings.forEach(heading => {
                 // 特性处理：如果开启了 removeThinking，且该标题位于 thinking 容器内，则跳过
-                if (features && features.removeThinking && selectors.thinking) {
-                    if (heading.closest(selectors.thinking)) {
+                if (features && features.removeThinking) {
+                    const thinkingEls = window.SELECTOR_MANAGER.getElements(this.platformId, 'thinking', answerElement);
+                    if (thinkingEls.some(t => t.contains(heading))) {
                         return; 
                     }
                 }
@@ -136,6 +181,17 @@ window.Pipeline = class Pipeline {
                 });
             });
         });
+
+        // 如果没有找到标题，尝试智能提取
+        if (allHeadings.length === 0) {
+            const smartHeadings = window.SELECTOR_MANAGER.getElements(this.platformId, 'HEADINGS', answerElement);
+            smartHeadings.forEach(heading => {
+                allHeadings.push({
+                    element: heading,
+                    level: 2 // 默认二级
+                });
+            });
+        }
 
         // 按文档位置排序
         const sortedHeadings = sortElementsByDocumentPosition(allHeadings);
@@ -162,33 +218,40 @@ window.Pipeline = class Pipeline {
     // 根据元数据查找元素
     findElement(metadata) {
         if (!this.config || !metadata) return null;
-        const { selectors } = this.config;
 
         if (metadata.type === 'question') {
-            const questions = document.querySelectorAll(selectors.question);
+            const questions = window.SELECTOR_MANAGER.getElements(this.platformId, 'question');
             return questions[metadata.index] || null;
         } else if (metadata.type === 'answer') {
-            const answers = document.querySelectorAll(selectors.answer);
+            const answers = window.SELECTOR_MANAGER.getElements(this.platformId, 'answer');
             const answerEl = answers[metadata.answerIndex];
             if (!answerEl) return null;
 
             // 重新查找该回答下的所有标题
-            const headingsConfig = selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+            const headingsConfig = this.config.selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
             const allHeadings = [];
             
-            // 需要使用与 _processAnswerHeadings 相同的逻辑来收集标题，确保索引一致
             const { features } = this.config;
             headingsConfig.forEach((selector, index) => {
                 const headings = answerEl.querySelectorAll(selector);
                 headings.forEach(heading => {
-                    if (features && features.removeThinking && selectors.thinking) {
-                        if (heading.closest(selectors.thinking)) return; 
+                    if (features && features.removeThinking) {
+                        const thinkingEls = window.SELECTOR_MANAGER.getElements(this.platformId, 'thinking', answerEl);
+                        if (thinkingEls.some(t => t.contains(heading))) return;
                     }
                     if (heading.classList.contains('sr-only')) return;
                     if (!heading.textContent.trim()) return;
                     allHeadings.push({ element: heading, level: index + 1 });
                 });
             });
+
+            // 智能提取兜底
+            if (allHeadings.length === 0) {
+                const smartHeadings = window.SELECTOR_MANAGER.getElements(this.platformId, 'HEADINGS', answerEl);
+                smartHeadings.forEach(heading => {
+                    allHeadings.push({ element: heading, level: 2 });
+                });
+            }
 
             const sortedHeadings = sortElementsByDocumentPosition(allHeadings);
             const target = sortedHeadings[metadata.headingIndex];

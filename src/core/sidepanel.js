@@ -37,7 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // 只处理当前激活标签页返回的消息
     if (sender.tab && sender.tab.id !== currentTabId) return;
     if (message.type === 'outline') {
-        displayOutline(message.outline);
+        displayOutline(message.outline, message.diagnostics);
         // 显示网站类型
         const url = sender.tab && sender.tab.url ? sender.tab.url : '';
         const siteInfo = document.getElementById('site-info');
@@ -116,12 +116,12 @@ function updateReadingProgress(currentItem) {
 }
 
 // 显示大纲
-function displayOutline(outlineData) {
+function displayOutline(outlineData, diagnostics) {
     const outlineContainer = document.getElementById('outline');
     
     // 检查是否有大纲数据
     if (!outlineData || outlineData.length === 0) {
-        showErrorMessage(outlineContainer, '当前页面未找到可用的大纲内容，请打开你的对话');
+        showErrorMessage(outlineContainer, '当前页面未找到可用的大纲内容，请打开你的对话', diagnostics);
         return;
     }
 
@@ -327,7 +327,26 @@ function toggleAllDirectories() {
 }
 
 // 添加错误消息显示函数
-function showErrorMessage(container, message) {
+function showErrorMessage(container, message, diagnostics) {
+    let diagnosticHtml = '';
+    if (diagnostics) {
+        diagnosticHtml = `
+            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <details>
+                    <summary style="font-size: 12px; color: #999; cursor: pointer;">调试诊断信息 (排查问题用)</summary>
+                    <div style="margin-top: 10px; background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; white-space: pre-wrap; overflow-x: auto;">
+Platform: ${diagnostics.platform}
+Strategy: ${diagnostics.strategy}
+URL: ${diagnostics.url}
+Stats: ${JSON.stringify(diagnostics.stats, null, 2)}
+ConfigFound: ${diagnostics.configFound}
+Error: ${diagnostics.error || 'None'}
+                    </div>
+                </details>
+            </div>
+        `;
+    }
+
     container.innerHTML = `
         <div class="error-message" style="padding: 20px; color: #666;">
             <h3 style="margin-bottom: 10px; color: #333;">提示</h3>
@@ -372,6 +391,7 @@ function showErrorMessage(container, message) {
                     </li>
                 </ul>
             </div>
+            ${diagnosticHtml}
             <p style="margin-top: 15px; font-size: 12px; color: #888;">
                 点击网站名称可直接访问对应网站
             </p>
