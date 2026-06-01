@@ -1,20 +1,39 @@
 // 注册侧面板
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
+const SUPPORTED_URL_PATTERNS = [
+    "*://*.deepseek.com/*",
+    "*://*.deepseek.ai/*",
+    "*://*.yuanbao.tencent.com/*",
+    "*://*.chatgpt.com/*",
+    "*://*.doubao.com/*",
+    "*://*.gemini.google.com/*",
+    "*://*.grok.com/*",
+    "*://*.kimi.com/*",
+    "*://*.moonshot.cn/*"
+];
+
+const SUPPORTED_URL_SNIPPETS = [
+    "deepseek.com",
+    "deepseek.ai",
+    "yuanbao.tencent.com",
+    "chatgpt.com",
+    "doubao.com",
+    "gemini.google.com",
+    "grok.com",
+    "kimi.com",
+    "moonshot.cn"
+];
+
+function isSupportedUrl(url = '') {
+    return SUPPORTED_URL_SNIPPETS.some(snippet => url.includes(snippet));
+}
+
 // 监听插件安装或更新
 chrome.runtime.onInstalled.addListener(async () => {
     // 获取所有匹配的标签页
     const tabs = await chrome.tabs.query({
-        url: [
-            "*://*.deepseek.com/*",
-            "*://*.yuanbao.tencent.com/*",
-            "*://*.chatgpt.com/*",
-            "*://*.gemini.google.com/*",
-            "*://*.grok.com/*",
-            "*://*.doubao.com/*",
-            "*://*.kimi.com/*",
-            "*://*.kimi.moonshot.cn/*"
-        ]
+        url: SUPPORTED_URL_PATTERNS
     });
     
     // 为每个匹配的标签页注入content script
@@ -38,14 +57,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 // 当标签页更新时，注入content script
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
-        const isMatchingUrl = tab.url.includes('deepseek.com') || 
-                            tab.url.includes('yuanbao.tencent.com') ||
-                            tab.url.includes('chatgpt.com') ||
-                            tab.url.includes('gemini.google.com') ||
-                            tab.url.includes('grok.com') ||
-                            tab.url.includes('doubao.com') ||
-                            tab.url.includes('kimi.com') ||
-                            tab.url.includes('kimi.moonshot.cn');
+        const isMatchingUrl = isSupportedUrl(tab.url);
         
         if (isMatchingUrl) {
             chrome.scripting.executeScript({
@@ -64,14 +76,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // 添加标签页切换监听器
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    const isMatchingUrl = tab.url.includes('deepseek.com') || 
-                         tab.url.includes('yuanbao.tencent.com') ||
-                         tab.url.includes('chatgpt.com') ||
-                         tab.url.includes('gemini.google.com') ||
-                         tab.url.includes('grok.com') ||
-                         tab.url.includes('doubao.com') ||
-                         tab.url.includes('kimi.com') ||
-                         tab.url.includes('kimi.moonshot.cn');
+    const isMatchingUrl = isSupportedUrl(tab.url);
     
     if (isMatchingUrl) {
         // 注入 content script
@@ -99,14 +104,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 // 监听插件图标点击事件
 chrome.action.onClicked.addListener(async (tab) => {
-    const isMatchingUrl = tab.url.includes('deepseek.com') || 
-                         tab.url.includes('yuanbao.tencent.com') ||
-                         tab.url.includes('chatgpt.com') ||
-                         tab.url.includes('gemini.google.com') ||
-                         tab.url.includes('grok.com') ||
-                         tab.url.includes('doubao.com') ||
-                         tab.url.includes('kimi.com') ||
-                         tab.url.includes('kimi.moonshot.cn');
+    const isMatchingUrl = isSupportedUrl(tab.url);
     
     if (isMatchingUrl) {
         // 注入 content script

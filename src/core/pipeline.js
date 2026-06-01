@@ -1,4 +1,6 @@
 window.Pipeline = class Pipeline {
+    static version = '2026-06-01-doubao-segmented';
+
     constructor() {
         this.config = this._getPlatformConfig(window.location.href);
         if (this.config) {
@@ -102,31 +104,88 @@ window.Pipeline = class Pipeline {
     }
 
     _extractFlat(outline) {
-        const questions = window.SELECTOR_MANAGER.getElements(this.platformId, 'question');
-        const answers = window.SELECTOR_MANAGER.getElements(this.platformId, 'answer');
+        const questions = this._sortElements(
+            window.SELECTOR_MANAGER.getElements(this.platformId, 'question')
+        );
+        const answers = this._sortElements(
+            window.SELECTOR_MANAGER.getElements(this.platformId, 'answer')
+        );
 
-        // 组合所有元素并保留原始索引
-        const items = [
-            ...questions.map((el, i) => ({ type: 'question', element: el, index: i })),
-            ...answers.map((el, i) => ({ type: 'answer', element: el, index: i }))
-        ];
+        if (questions.length === 0) {
+            answers.forEach((answer, index) => {
+                this._processAnswerHeadings(answer, outline, index);
+            });
+            return;
+        }
 
-        // 按文档位置排序
-        items.sort((a, b) => {
-            const position = a.element.compareDocumentPosition(b.element);
-            if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-            if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-            return 0;
+        if (this._extractSingleAnswerContainerByQuestions(questions, answers, outline)) {
+            return;
+        }
+
+        questions.forEach((questionEl, questionIndex) => {
+            this._addQuestionToOutline(questionEl, questionIndex, outline);
+
+            const nextQuestionEl = questions[questionIndex + 1] || null;
+            const relatedAnswers = answers.filter(answerEl => {
+                if (answerEl === questionEl) return false;
+
+                if (answerEl.contains(questionEl)) {
+                    return true;
+                }
+
+                const isAfterCurrent =
+                    window.compareElementsByPosition(answerEl, questionEl) > 0;
+                if (!isAfterCurrent) return false;
+
+                if (!nextQuestionEl) return true;
+
+                return window.compareElementsByPosition(answerEl, nextQuestionEl) < 0;
+            });
+
+            relatedAnswers.forEach(answerEl => {
+                const answerIndex = answers.indexOf(answerEl);
+                const segmentOptions = answerEl.contains(questionEl)
+                    ? {
+                        questionIndex,
+                        segmentKey: `q-${questionIndex}`,
+                        startAfter: questionEl,
+                        endBefore: nextQuestionEl && answerEl.contains(nextQuestionEl) ? nextQuestionEl : null
+                    }
+                    : {
+                        questionIndex,
+                        segmentKey: `q-${questionIndex}`,
+                        endBefore: nextQuestionEl
+                    };
+
+                this._processAnswerHeadings(answerEl, outline, answerIndex, segmentOptions);
+            });
+        });
+    }
+
+    _sortElements(elements) {
+        return [...elements].sort((a, b) => window.compareElementsByPosition(a, b));
+    }
+
+    _extractSingleAnswerContainerByQuestions(questions, answers, outline) {
+        const { features = {} } = this.config;
+        if (!features.segmentSingleAnswerByQuestions) return false;
+        if (questions.length < 2 || answers.length !== 1) return false;
+
+        const answerEl = answers[0];
+        const containedQuestions = questions.filter(question => answerEl.contains(question));
+        if (containedQuestions.length < 2) return false;
+
+        containedQuestions.forEach((questionEl, questionIndex) => {
+            this._addQuestionToOutline(questionEl, questionIndex, outline);
+            this._processAnswerHeadings(answerEl, outline, 0, {
+                questionIndex,
+                segmentKey: `q-${questionIndex}`,
+                startAfter: questionEl,
+                endBefore: containedQuestions[questionIndex + 1] || null
+            });
         });
 
-        // 按顺序处理
-        items.forEach(item => {
-            if (item.type === 'question') {
-                this._addQuestionToOutline(item.element, item.index, outline);
-            } else if (item.type === 'answer') {
-                this._processAnswerHeadings(item.element, outline, item.index);
-            }
-        });
+        return true;
     }
 
     _addQuestionToOutline(questionEl, index, outline) {
@@ -149,8 +208,14 @@ window.Pipeline = class Pipeline {
         });
     }
 
-    _processAnswerHeadings(answerElement, outline, answerIndex) {
+    _processAnswerHeadings(answerElement, outline, answerIndex, options = {}) {
         const { features } = this.config;
+        const {
+            startAfter = null,
+            endBefore = null,
+            questionIndex = null,
+            segmentKey = 'default'
+        } = options;
         
         // 默认 H1-H6 或配置的标题选择器
         const headingsConfig = this.config.selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
@@ -175,6 +240,14 @@ window.Pipeline = class Pipeline {
                 // 跳过空标题
                 if (!heading.textContent.trim()) return;
 
+                if (startAfter && window.compareElementsByPosition(heading, startAfter) <= 0) {
+                    return;
+                }
+
+                if (endBefore && window.compareElementsByPosition(heading, endBefore) >= 0) {
+                    return;
+                }
+
                 allHeadings.push({
                     element: heading,
                     level: index + 1
@@ -186,6 +259,14 @@ window.Pipeline = class Pipeline {
         if (allHeadings.length === 0) {
             const smartHeadings = window.SELECTOR_MANAGER.getElements(this.platformId, 'HEADINGS', answerElement);
             smartHeadings.forEach(heading => {
+                if (startAfter && window.compareElementsByPosition(heading, startAfter) <= 0) {
+                    return;
+                }
+
+                if (endBefore && window.compareElementsByPosition(heading, endBefore) >= 0) {
+                    return;
+                }
+
                 allHeadings.push({
                     element: heading,
                     level: 2 // 默认二级
@@ -198,7 +279,7 @@ window.Pipeline = class Pipeline {
 
         sortedHeadings.forEach(({element, level}, headingIndex) => {
             // 使用稳定 ID
-            const stableId = `cn-a-${answerIndex}-h-${headingIndex}`;
+            const stableId = `cn-a-${answerIndex}-${segmentKey}-h-${headingIndex}`;
             if (element.id !== stableId) element.id = stableId;
             
             outline.push({
@@ -209,7 +290,9 @@ window.Pipeline = class Pipeline {
                 metadata: {
                     type: 'answer',
                     answerIndex: answerIndex,
-                    headingIndex: headingIndex
+                    headingIndex: headingIndex,
+                    questionIndex: questionIndex,
+                    segmented: !!startAfter || !!endBefore
                 }
             });
         });
@@ -220,12 +303,32 @@ window.Pipeline = class Pipeline {
         if (!this.config || !metadata) return null;
 
         if (metadata.type === 'question') {
-            const questions = window.SELECTOR_MANAGER.getElements(this.platformId, 'question');
+            const questions = this._sortElements(
+                window.SELECTOR_MANAGER.getElements(this.platformId, 'question')
+            );
             return questions[metadata.index] || null;
         } else if (metadata.type === 'answer') {
-            const answers = window.SELECTOR_MANAGER.getElements(this.platformId, 'answer');
+            const answers = this._sortElements(
+                window.SELECTOR_MANAGER.getElements(this.platformId, 'answer')
+            );
             const answerEl = answers[metadata.answerIndex];
             if (!answerEl) return null;
+
+            const questions = this._sortElements(
+                window.SELECTOR_MANAGER.getElements(this.platformId, 'question')
+            );
+            const segmentQuestion = typeof metadata.questionIndex === 'number'
+                ? questions[metadata.questionIndex] || null
+                : null;
+            const nextQuestion = typeof metadata.questionIndex === 'number'
+                ? questions[metadata.questionIndex + 1] || null
+                : null;
+            const startAfter = segmentQuestion && answerEl.contains(segmentQuestion)
+                ? segmentQuestion
+                : null;
+            const endBefore = nextQuestion && answerEl.contains(nextQuestion)
+                ? nextQuestion
+                : null;
 
             // 重新查找该回答下的所有标题
             const headingsConfig = this.config.selectors.HEADINGS || ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
@@ -241,6 +344,8 @@ window.Pipeline = class Pipeline {
                     }
                     if (heading.classList.contains('sr-only')) return;
                     if (!heading.textContent.trim()) return;
+                    if (startAfter && window.compareElementsByPosition(heading, startAfter) <= 0) return;
+                    if (endBefore && window.compareElementsByPosition(heading, endBefore) >= 0) return;
                     allHeadings.push({ element: heading, level: index + 1 });
                 });
             });
@@ -249,6 +354,8 @@ window.Pipeline = class Pipeline {
             if (allHeadings.length === 0) {
                 const smartHeadings = window.SELECTOR_MANAGER.getElements(this.platformId, 'HEADINGS', answerEl);
                 smartHeadings.forEach(heading => {
+                    if (startAfter && window.compareElementsByPosition(heading, startAfter) <= 0) return;
+                    if (endBefore && window.compareElementsByPosition(heading, endBefore) >= 0) return;
                     allHeadings.push({ element: heading, level: 2 });
                 });
             }

@@ -126,6 +126,12 @@ function displayOutline(outlineData, diagnostics) {
     }
 
     outlineContainer.innerHTML = '';
+
+    const hasQuestion = outlineData.some(item => item.type === 'question');
+    if (!hasQuestion) {
+        renderFlatOutline(outlineData, outlineContainer);
+        return;
+    }
     
     let currentQuestion = null;
     let questionAnswers = [];
@@ -149,6 +155,31 @@ function displayOutline(outlineData, diagnostics) {
     if (currentQuestion) {
         renderQuestionGroup(currentQuestion, questionAnswers, outlineContainer);
     }
+}
+
+function renderFlatOutline(items, container) {
+    items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `outline-item ${item.level} ${item.type}`;
+        itemDiv.textContent = item.text;
+        itemDiv.setAttribute('data-element-id', item.id);
+
+        if (item.metadata) {
+            itemDiv.dataset.metadata = JSON.stringify(item.metadata);
+        }
+
+        itemDiv.addEventListener('click', () => {
+            chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    type: 'scrollTo',
+                    elementId: item.id,
+                    metadata: item.metadata
+                });
+            });
+        });
+
+        container.appendChild(itemDiv);
+    });
 }
 
 // 渲染问题组（问题及其答案）

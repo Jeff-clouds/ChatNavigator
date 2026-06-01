@@ -4,20 +4,21 @@
   "version": "1.5.2",
   "description": "在侧面板中显示网页大纲，支持快速导航",
   "permissions": [
-    "sidePanel", 
-    "activeTab", 
+    "sidePanel",
+    "activeTab",
     "scripting",
     "tabs"
   ],
   "host_permissions": [
     "*://*.deepseek.com/*",
+    "*://*.deepseek.ai/*",
     "*://*.yuanbao.tencent.com/*",
     "*://*.chatgpt.com/*",
+    "*://*.doubao.com/*",
     "*://*.gemini.google.com/*",
     "*://*.grok.com/*",
-    "*://*.doubao.com/*",
     "*://*.kimi.com/*",
-    "*://*.kimi.moonshot.cn/*"
+    "*://*.moonshot.cn/*"
   ],
   "side_panel": {
     "default_path": "src/core/sidepanel.html"
@@ -67,8 +68,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["src/config/selectors.json"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "src/config/selectors.json"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

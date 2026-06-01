@@ -1,7 +1,13 @@
 (function() {
+    window.CHAT_NAVIGATOR_CONTENT_VERSION = '2026-06-01-doubao-segmented';
+
     // 清理旧的实例和监听器
     if (window.chatNavigatorCleanup) {
-        window.chatNavigatorCleanup();
+        try {
+            window.chatNavigatorCleanup();
+        } catch (err) {
+            console.warn('ChatNavigator: Ignored stale cleanup error', err);
+        }
     }
 
     // 初始化管道
@@ -28,7 +34,7 @@
     function initializeReadingPositionDetection() {
         if (readingPositionObserver) readingPositionObserver.disconnect();
         
-        const outlineElements = Array.from(document.querySelectorAll('[id^="_"]'));
+        const outlineElements = Array.from(document.querySelectorAll('[id^="cn-"]'));
         if (outlineElements.length === 0) return;
         
         readingPositionObserver = new IntersectionObserver((entries) => {
@@ -164,7 +170,7 @@
 
     // 导航功能实现
     function navigateHeadings(direction) {
-        const outlineElements = Array.from(document.querySelectorAll('[id^="_"]'));
+        const outlineElements = Array.from(document.querySelectorAll('[id^="cn-"]'));
         if (outlineElements.length === 0) return;
 
         // 找到当前视口中最接近顶部的元素
