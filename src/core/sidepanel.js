@@ -133,25 +133,15 @@ function updateReadingProgress(currentItem) {
     const allItems = document.querySelectorAll('.outline-item');
     const currentIndex = Array.from(allItems).indexOf(currentItem);
     const progress = ((currentIndex + 1) / allItems.length) * 100;
-    
-    // 更新进度条
+
+    // 更新进度条 - 样式由 CSS 控制
     let progressBar = document.getElementById('reading-progress');
     if (!progressBar) {
         progressBar = document.createElement('div');
         progressBar.id = 'reading-progress';
-        progressBar.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #2196f3, #4caf50);
-            transition: width 0.3s ease;
-            z-index: 1000;
-            width: 0%;
-        `;
         document.body.appendChild(progressBar);
     }
-    
+
     progressBar.style.width = `${progress}%`;
 }
 
@@ -226,7 +216,7 @@ function renderFlatOutline(items, container) {
 function renderQuestionGroup(question, answers, container) {
     const groupDiv = document.createElement('div');
     groupDiv.className = 'question-group';
-    
+
     // 创建问题元素
     const questionDiv = document.createElement('div');
     questionDiv.className = `outline-item ${question.level} ${question.type}`;
@@ -235,32 +225,25 @@ function renderQuestionGroup(question, answers, container) {
     if (question.metadata) {
         questionDiv.dataset.metadata = JSON.stringify(question.metadata);
     }
-    
-    // 创建展开/收起图标
+
+    // 创建展开/收起图标 - 使用 CSS 类控制
     const toggle = document.createElement('span');
-    toggle.className = 'toggle-icon';
-    toggle.textContent = '▼';
-    toggle.style.marginRight = '5px';
-    toggle.style.cursor = 'pointer';
+    toggle.className = 'toggle-icon expanded';  // 默认展开
     questionDiv.appendChild(toggle);
-    
+
     // 添加问题文本
     const text = document.createElement('span');
     text.textContent = question.text;
     questionDiv.appendChild(text);
-    
-    // 设置问题样式
-    questionDiv.style.fontWeight = 'bold';
-    questionDiv.style.color = '#1a73e8';
-    
+
     // 创建答案容器
     const answersDiv = document.createElement('div');
     answersDiv.className = 'answers-container';
-    answersDiv.style.display = 'block';
-    
+    // 移除初始 display 设置，由 CSS max-height 控制
+
     // 添加问题点击事件（跳转）
     questionDiv.addEventListener('click', (e) => {
-        if (e.target !== toggle) {
+        if (e.target !== toggle && !e.target.closest('.toggle-icon')) {
             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     type: 'scrollTo',
@@ -270,18 +253,39 @@ function renderQuestionGroup(question, answers, container) {
             });
         }
     });
-    
+
     // 添加展开/收起功能
     toggle.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isExpanded = toggle.textContent === '▼';
-        toggle.textContent = isExpanded ? '▶' : '▼';
-        answersDiv.style.display = isExpanded ? 'none' : 'block';
-        
+        const isExpanded = toggle.classList.contains('expanded');
+        toggle.classList.toggle('expanded', !isExpanded);
+        toggle.classList.toggle('collapsed', isExpanded);
+
+        if (isExpanded) {
+            // 收起：设置明确高度作为过渡起点，然后收起到 0
+            answersDiv.style.maxHeight = answersDiv.scrollHeight + 'px';
+            requestAnimationFrame(() => {
+                answersDiv.classList.add('collapsing');
+            });
+        } else {
+            // 展开：设置目标高度，移除 collapsing 触发过渡，完成后清理
+            const targetHeight = answersDiv.scrollHeight;
+            answersDiv.style.maxHeight = '0px';
+            answersDiv.classList.remove('collapsing');
+            requestAnimationFrame(() => {
+                answersDiv.style.maxHeight = targetHeight + 'px';
+            });
+            const onEnd = () => {
+                answersDiv.style.maxHeight = '';
+                answersDiv.removeEventListener('transitionend', onEnd);
+            };
+            answersDiv.addEventListener('transitionend', onEnd);
+        }
+
         // 检查是否所有目录都已收起
         updateGlobalCollapseState();
     });
-    
+
     // 渲染所有答案和子标题
     answers.forEach(answer => {
         const answerDiv = document.createElement('div');
@@ -292,10 +296,7 @@ function renderQuestionGroup(question, answers, container) {
         if (answer.metadata) {
             answerDiv.dataset.metadata = JSON.stringify(answer.metadata);
         }
-        
-        // 设置答案样式
-        answerDiv.style.color = '#202124';
-        
+
         // 添加答案点击事件
         answerDiv.addEventListener('click', () => {
             chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
@@ -306,10 +307,10 @@ function renderQuestionGroup(question, answers, container) {
                 });
             });
         });
-        
+
         answersDiv.appendChild(answerDiv);
     });
-    
+
     groupDiv.appendChild(questionDiv);
     groupDiv.appendChild(answersDiv);
     container.appendChild(groupDiv);
@@ -328,24 +329,23 @@ function updateGlobalCollapseState() {
     const allToggles = document.querySelectorAll('.toggle-icon');
     const allAnswersContainers = document.querySelectorAll('.answers-container');
     const toggleAllBtn = document.getElementById('toggle-all-btn');
-    
+
     if (allToggles.length === 0) return;
-    
-    // 检查是否所有目录都已收起
+
+    // 检查是否所有目录都已收起 - 使用 collapsing 类
     let allCurrentlyCollapsed = true;
-    allToggles.forEach((toggle, index) => {
-        const answersContainer = allAnswersContainers[index];
-        if (answersContainer && answersContainer.style.display !== 'none') {
+    allAnswersContainers.forEach(container => {
+        if (!container.classList.contains('collapsing')) {
             allCurrentlyCollapsed = false;
         }
     });
-    
+
     // 更新全局状态和按钮
     allCollapsed = allCurrentlyCollapsed;
     if (toggleAllBtn) {
         const icon = toggleAllBtn.querySelector('.icon');
         const text = toggleAllBtn.querySelector('.text');
-        
+
         if (allCollapsed) {
             toggleAllBtn.classList.add('collapsed');
             icon.textContent = '▶';
@@ -363,14 +363,14 @@ function toggleAllDirectories() {
     const toggleAllBtn = document.getElementById('toggle-all-btn');
     const allToggles = document.querySelectorAll('.toggle-icon');
     const allAnswersContainers = document.querySelectorAll('.answers-container');
-    
+
     allCollapsed = !allCollapsed;
-    
+
     // 更新按钮状态
     if (toggleAllBtn) {
         const icon = toggleAllBtn.querySelector('.icon');
         const text = toggleAllBtn.querySelector('.text');
-        
+
         if (allCollapsed) {
             toggleAllBtn.classList.add('collapsed');
             icon.textContent = '▶';
@@ -381,18 +381,33 @@ function toggleAllDirectories() {
             text.textContent = '收起所有';
         }
     }
-    
-    // 更新所有目录状态
+
+    // 更新所有目录状态 - 使用 max-height 动画
     allToggles.forEach((toggle, index) => {
         const answersContainer = allAnswersContainers[index];
-        if (answersContainer) {
-            if (allCollapsed) {
-                toggle.textContent = '▶';
-                answersContainer.style.display = 'none';
-            } else {
-                toggle.textContent = '▼';
-                answersContainer.style.display = 'block';
-            }
+        if (!answersContainer) return;
+
+        if (allCollapsed) {
+            toggle.classList.remove('expanded');
+            toggle.classList.add('collapsed');
+            answersContainer.style.maxHeight = answersContainer.scrollHeight + 'px';
+            requestAnimationFrame(() => {
+                answersContainer.classList.add('collapsing');
+            });
+        } else {
+            toggle.classList.remove('collapsed');
+            toggle.classList.add('expanded');
+            const targetHeight = answersContainer.scrollHeight;
+            answersContainer.style.maxHeight = '0px';
+            answersContainer.classList.remove('collapsing');
+            requestAnimationFrame(() => {
+                answersContainer.style.maxHeight = targetHeight + 'px';
+            });
+            const onEnd = () => {
+                answersContainer.style.maxHeight = '';
+                answersContainer.removeEventListener('transitionend', onEnd);
+            };
+            answersContainer.addEventListener('transitionend', onEnd);
         }
     });
 }
@@ -402,10 +417,10 @@ function showErrorMessage(container, message, diagnostics) {
     let diagnosticHtml = '';
     if (diagnostics) {
         diagnosticHtml = `
-            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <div class="diagnostic-info">
                 <details>
-                    <summary style="font-size: 12px; color: #999; cursor: pointer;">调试诊断信息 (排查问题用)</summary>
-                    <div style="margin-top: 10px; background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; white-space: pre-wrap; overflow-x: auto;">
+                    <summary>调试诊断信息 (排查问题用)</summary>
+                    <div class="diagnostic-content">
 Platform: ${diagnostics.platform}
 Strategy: ${diagnostics.strategy}
 URL: ${diagnostics.url}
@@ -419,64 +434,53 @@ Error: ${diagnostics.error || 'None'}
     }
 
     container.innerHTML = `
-        <div class="error-message" style="padding: 20px; color: #666;">
-            <h3 style="margin-bottom: 10px; color: #333;">提示</h3>
+        <div class="error-message">
+            <h3>提示</h3>
             <p>${message}</p>
             <div style="margin-top: 15px;">
                 <p>支持的网站类型：</p>
                 <ul style="margin-top: 8px; padding-left: 20px;">
                     <li>
-                        <a href="https://chat.deepseek.com/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                        <a href="https://chat.deepseek.com/" target="_blank">
                             DeepSeek Chat
                         </a>
                     </li>
                     <li>
-                        <a href="https://yuanbao.tencent.com/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                        <a href="https://yuanbao.tencent.com/" target="_blank">
                             元宝 AI
                         </a>
                     </li>
                     <li>
-                        <a href="https://chat.openai.com/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                        <a href="https://chat.openai.com/" target="_blank">
                             ChatGPT
                         </a>
                     </li>
                     <li>
-                        <a href="https://gemini.google.com/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                        <a href="https://gemini.google.com/" target="_blank">
                             Google Gemini
                         </a>
                     </li>
                     <li>
-                        <a href="https://grok.x.ai/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                        <a href="https://grok.x.ai/" target="_blank">
                             Grok
                         </a>
                     </li>
                     <li>
-                        <a href="https://doubao.com/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                        <a href="https://doubao.com/" target="_blank">
                             豆包 AI
                         </a>
                     </li>
                     <li>
-                        <a href="https://kimi.moonshot.cn/" target="_blank" style="color: #1a73e8; text-decoration: none;">
+                        <a href="https://kimi.moonshot.cn/" target="_blank">
                             Kimi 智能助手
                         </a>
                     </li>
                 </ul>
             </div>
             ${diagnosticHtml}
-            <p style="margin-top: 15px; font-size: 12px; color: #888;">
+            <p style="margin-top: 15px; font-size: 12px; color: var(--text-tertiary);">
                 点击网站名称可直接访问对应网站
             </p>
         </div>
     `;
-
-    // 为链接添加悬停效果
-    const links = container.getElementsByTagName('a');
-    for (let link of links) {
-        link.addEventListener('mouseover', () => {
-            link.style.textDecoration = 'underline';
-        });
-        link.addEventListener('mouseout', () => {
-            link.style.textDecoration = 'none';
-        });
-    }
 } 
