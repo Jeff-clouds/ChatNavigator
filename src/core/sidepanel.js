@@ -4,15 +4,55 @@ let currentTabId = null;
 // 全局状态：是否所有目录都已收起
 let allCollapsed = false;
 
+const SUPPORTED_URL_SNIPPETS = [
+    'deepseek.com',
+    'deepseek.ai',
+    'yuanbao.tencent.com',
+    'chatgpt.com',
+    'doubao.com',
+    'gemini.google.com',
+    'grok.com',
+    'kimi.com',
+    'moonshot.cn'
+];
+
+const CONTENT_SCRIPT_FILES = [
+    'src/config/selectors.js',
+    'src/utils/common.js',
+    'src/core/pipeline.js',
+    'src/core/content.js'
+];
+
+function isSupportedUrl(url = '') {
+    return SUPPORTED_URL_SNIPPETS.some(snippet => url.includes(snippet));
+}
+
+async function injectCurrentContentScripts(tabId) {
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        files: CONTENT_SCRIPT_FILES
+    });
+}
+
 // 主动请求当前标签页大纲
 function requestCurrentTabOutline() {
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    chrome.tabs.query({active: true, currentWindow: true}, async (tabs) => {
         if (tabs[0]) {
             currentTabId = tabs[0].id;
             // 清空大纲显示，防止串台
             const outlineContainer = document.getElementById('outline');
             if (outlineContainer) outlineContainer.innerHTML = '<div class="loading-state"><p>正在分析页面内容...</p></div>';
-            chrome.tabs.sendMessage(currentTabId, {type: 'getOutline'});
+
+            try {
+                if (isSupportedUrl(tabs[0].url)) {
+                    await injectCurrentContentScripts(currentTabId);
+                }
+                chrome.tabs.sendMessage(currentTabId, {type: 'getOutline'});
+            } catch (err) {
+                showErrorMessage(outlineContainer, '无法注入页面分析脚本，请刷新当前页面后重试', {
+                    error: err.message
+                });
+            }
         }
     });
 }

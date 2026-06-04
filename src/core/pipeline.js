@@ -1,5 +1,5 @@
 window.Pipeline = class Pipeline {
-    static version = '2026-06-01-doubao-segmented';
+    static version = '2026-06-02-heading-level-normalization';
 
     constructor() {
         this.config = this._getPlatformConfig(window.location.href);
@@ -57,7 +57,13 @@ window.Pipeline = class Pipeline {
             const outline = [];
 
             // 1. 尝试识别对话容器 (Conversation Item Mode)
-            const items = window.SELECTOR_MANAGER.getElements(this.platformId, 'conversation');
+            // 只有显式配置 conversation 选择器的平台才进入 nested 模式。
+            // 豆包这类页面会把多轮问答包在同一个大容器里，语义兜底误判为 conversation
+            // 会导致 nested 模式只取第一问。
+            const hasConversationSelector = !!(this.config.selectors && this.config.selectors.conversation);
+            const items = hasConversationSelector
+                ? window.SELECTOR_MANAGER.getElements(this.platformId, 'conversation')
+                : [];
             diagnostics.stats.conversations = items.length;
 
             if (items.length > 0) {
@@ -118,7 +124,7 @@ window.Pipeline = class Pipeline {
             return;
         }
 
-        if (this._extractSingleAnswerContainerByQuestions(questions, answers, outline)) {
+        if (this._extractAnswerContainersByContainedQuestions(questions, answers, outline)) {
             return;
         }
 
@@ -166,26 +172,43 @@ window.Pipeline = class Pipeline {
         return [...elements].sort((a, b) => window.compareElementsByPosition(a, b));
     }
 
-    _extractSingleAnswerContainerByQuestions(questions, answers, outline) {
+    _extractAnswerContainersByContainedQuestions(questions, answers, outline) {
         const { features = {} } = this.config;
         if (!features.segmentSingleAnswerByQuestions) return false;
-        if (questions.length < 2 || answers.length !== 1) return false;
+        if (questions.length < 2 || answers.length === 0) return false;
 
-        const answerEl = answers[0];
-        const containedQuestions = questions.filter(question => answerEl.contains(question));
-        if (containedQuestions.length < 2) return false;
+        const segmentContainers = answers
+            .map((answerEl, answerIndex) => ({
+                answerEl,
+                answerIndex,
+                containedQuestions: questions.filter(question => answerEl.contains(question))
+            }))
+            .filter(item => item.containedQuestions.length >= 2);
 
-        containedQuestions.forEach((questionEl, questionIndex) => {
-            this._addQuestionToOutline(questionEl, questionIndex, outline);
-            this._processAnswerHeadings(answerEl, outline, 0, {
-                questionIndex,
-                segmentKey: `q-${questionIndex}`,
-                startAfter: questionEl,
-                endBefore: containedQuestions[questionIndex + 1] || null
+        if (segmentContainers.length === 0) return false;
+
+        const handledQuestions = new Set();
+
+        segmentContainers.forEach(({ answerEl, answerIndex, containedQuestions }) => {
+            containedQuestions.forEach(questionEl => {
+                if (handledQuestions.has(questionEl)) return;
+
+                const questionIndex = questions.indexOf(questionEl);
+                const localQuestionIndex = containedQuestions.indexOf(questionEl);
+
+                this._addQuestionToOutline(questionEl, questionIndex, outline);
+                this._processAnswerHeadings(answerEl, outline, answerIndex, {
+                    questionIndex,
+                    segmentKey: `q-${questionIndex}`,
+                    startAfter: questionEl,
+                    endBefore: containedQuestions[localQuestionIndex + 1] || null
+                });
+
+                handledQuestions.add(questionEl);
             });
         });
 
-        return true;
+        return handledQuestions.size > 0;
     }
 
     _addQuestionToOutline(questionEl, index, outline) {
@@ -278,13 +301,14 @@ window.Pipeline = class Pipeline {
         const sortedHeadings = sortElementsByDocumentPosition(allHeadings);
 
         sortedHeadings.forEach(({element, level}, headingIndex) => {
+            const normalizedLevel = Math.min(6, Math.max(2, level));
             // 使用稳定 ID
             const stableId = `cn-a-${answerIndex}-${segmentKey}-h-${headingIndex}`;
             if (element.id !== stableId) element.id = stableId;
             
             outline.push({
                 text: element.textContent.trim(),
-                level: `h${level}`,
+                level: `h${normalizedLevel}`,
                 id: element.id,
                 type: 'answer',
                 metadata: {

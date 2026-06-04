@@ -1,5 +1,5 @@
 (function() {
-    window.CHAT_NAVIGATOR_CONTENT_VERSION = '2026-06-01-doubao-segmented';
+    window.CHAT_NAVIGATOR_CONTENT_VERSION = '2026-06-02-heading-level-normalization';
 
     // 清理旧的实例和监听器
     if (window.chatNavigatorCleanup) {

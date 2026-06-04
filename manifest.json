@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Chat outline",
-  "version": "1.5.2",
+  "version": "1.5.6",
   "description": "在侧面板中显示网页大纲，支持快速导航",
   "permissions": [
     "sidePanel",

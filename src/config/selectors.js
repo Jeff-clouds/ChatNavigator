@@ -91,7 +91,7 @@ class SelectorManager {
                     "conversation": null,
                     "title": "div.group\\/title",
                     "question": "div[class*=\"send-msg-bubble\"], div[class*=\"bg-g-send-msg-bubble-bg\"]",
-                    "answer": "[aria-label=\"doc_editor\"]",
+                    "answer": "div[class*=\"conversation-page-message-host\"]",
                     "thinking": null,
                     "HEADINGS": [
                         "h1",
@@ -169,10 +169,7 @@ class SelectorManager {
                         "h3",
                         "h4",
                         "h5",
-                        "h6",
-                        "[id*=\"heading\"]",
-                        "[class*=\"title\"]",
-                        "[class*=\"header\"]"
+                        "h6"
                     ]
                 },
                 "features": {}
