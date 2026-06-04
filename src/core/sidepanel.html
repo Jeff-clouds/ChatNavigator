@@ -146,13 +146,12 @@
             font-weight: 600;
             color: var(--text-primary);
             background-color: var(--bg-question);
-            padding: 21px 12px;  /* 从 14px 增加 50% */
+            padding: 21px 12px;  /* 恢复原来的 padding */
             margin-top: 8px;
             margin-bottom: 0;
             border-radius: 8px;
-            width: 100%;  /* 从 width: auto 改为 100% */
+            width: 100%;
             border: 1px solid var(--bg-item-border);
-            /* 移除 border-left: 3px solid transparent */
         }
 
         .outline-item.question:first-child {
@@ -167,8 +166,7 @@
             color: var(--text-secondary);
             font-weight: 400;
             font-size: 13px;
-            padding: 12px 12px;  /* 从 8px 增加 50% */
-            /* 移除 border-left 和 justify-content: flex-end */
+            padding: 12px 12px;
         }
 
         /* 展开/收起图标 - CSS 绘制 */
@@ -209,11 +207,11 @@
         .answers-container {
             overflow: hidden;
             opacity: 1;
-            transition: max-height 0.3s ease-in-out, opacity 0.2s ease;
+            transition: height 0.3s ease-in-out, opacity 0.2s ease;
         }
 
         .answers-container.collapsing {
-            max-height: 0;
+            height: 0 !important;  /* 使用 !important 确保覆盖内联样式 */
             opacity: 0;
         }
 

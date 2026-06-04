@@ -262,21 +262,30 @@ function renderQuestionGroup(question, answers, container) {
         toggle.classList.toggle('collapsed', isExpanded);
 
         if (isExpanded) {
-            // 收起：设置明确高度作为过渡起点，然后收起到 0
-            answersDiv.style.maxHeight = answersDiv.scrollHeight + 'px';
-            requestAnimationFrame(() => {
-                answersDiv.classList.add('collapsing');
-            });
-        } else {
-            // 展开：设置目标高度，移除 collapsing 触发过渡，完成后清理
-            const targetHeight = answersDiv.scrollHeight;
-            answersDiv.style.maxHeight = '0px';
-            answersDiv.classList.remove('collapsing');
-            requestAnimationFrame(() => {
-                answersDiv.style.maxHeight = targetHeight + 'px';
-            });
+            // 收起：测量当前高度，设置明确高度，强制重绘，然后收起
+            const currentHeight = answersDiv.offsetHeight;
+            answersDiv.style.height = currentHeight + 'px';
+            // 强制重绘，确保浏览器注册起始值
+            answersDiv.offsetHeight;
+            answersDiv.classList.add('collapsing');
+            // 过渡完成后清理内联样式
             const onEnd = () => {
-                answersDiv.style.maxHeight = '';
+                answersDiv.style.height = '';
+                answersDiv.removeEventListener('transitionend', onEnd);
+            };
+            answersDiv.addEventListener('transitionend', onEnd);
+        } else {
+            // 展开：移除 collapsing，测量目标高度，动画到目标
+            answersDiv.classList.remove('collapsing');
+            answersDiv.style.height = 'auto';
+            const targetHeight = answersDiv.offsetHeight;
+            answersDiv.style.height = '0px';
+            // 强制重绘
+            answersDiv.offsetHeight;
+            answersDiv.style.height = targetHeight + 'px';
+            // 过渡完成后清理内联样式
+            const onEnd = () => {
+                answersDiv.style.height = '';
                 answersDiv.removeEventListener('transitionend', onEnd);
             };
             answersDiv.addEventListener('transitionend', onEnd);
@@ -382,29 +391,36 @@ function toggleAllDirectories() {
         }
     }
 
-    // 更新所有目录状态 - 使用 max-height 动画
+    // 更新所有目录状态 - 使用 height 动画
     allToggles.forEach((toggle, index) => {
         const answersContainer = allAnswersContainers[index];
         if (!answersContainer) return;
 
         if (allCollapsed) {
+            // 收起：测量、设置、强制重绘、添加类
             toggle.classList.remove('expanded');
             toggle.classList.add('collapsed');
-            answersContainer.style.maxHeight = answersContainer.scrollHeight + 'px';
-            requestAnimationFrame(() => {
-                answersContainer.classList.add('collapsing');
-            });
+            const currentHeight = answersContainer.offsetHeight;
+            answersContainer.style.height = currentHeight + 'px';
+            answersContainer.offsetHeight;
+            answersContainer.classList.add('collapsing');
+            const onEnd = () => {
+                answersContainer.style.height = '';
+                answersContainer.removeEventListener('transitionend', onEnd);
+            };
+            answersContainer.addEventListener('transitionend', onEnd);
         } else {
+            // 展开：移除类、测量、动画
             toggle.classList.remove('collapsed');
             toggle.classList.add('expanded');
-            const targetHeight = answersContainer.scrollHeight;
-            answersContainer.style.maxHeight = '0px';
             answersContainer.classList.remove('collapsing');
-            requestAnimationFrame(() => {
-                answersContainer.style.maxHeight = targetHeight + 'px';
-            });
+            answersContainer.style.height = 'auto';
+            const targetHeight = answersContainer.offsetHeight;
+            answersContainer.style.height = '0px';
+            answersContainer.offsetHeight;
+            answersContainer.style.height = targetHeight + 'px';
             const onEnd = () => {
-                answersContainer.style.maxHeight = '';
+                answersContainer.style.height = '';
                 answersContainer.removeEventListener('transitionend', onEnd);
             };
             answersContainer.addEventListener('transitionend', onEnd);
