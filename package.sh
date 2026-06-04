@@ -35,6 +35,6 @@ echo "📁 文件: ${FILENAME}"
 echo "📊 大小: $(du -h "${FILENAME}" | cut -f1)"
 echo ""
 echo "📋 包含的文件:"
-unzip -l "${FILENAME}" | tail -n +4 | head -n -2
+unzip -l "${FILENAME}" | sed '1,3d;$d;$d'
 echo ""
 echo "🚀 准备提交到 Chrome 网上应用店!"

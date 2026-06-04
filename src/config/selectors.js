@@ -137,8 +137,8 @@ class SelectorManager {
                 "selectors": {
                     "conversation": null,
                     "title": null,
-                    "question": ".message-bubble:not(:has(.response-content-markdown))",
-                    "answer": ".response-content-markdown",
+                    "question": "[data-testid=\"user-message\"]",
+                    "answer": "[data-testid=\"assistant-message\"]",
                     "thinking": null,
                     "HEADINGS": [
                         "h1",
