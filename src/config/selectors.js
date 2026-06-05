@@ -114,7 +114,7 @@ class SelectorManager {
                 ],
                 "selectors": {
                     "conversation": ".conversation-container",
-                    "title": ".conversation-title-container",
+                    "title": null,
                     "question": ".user-query-container",
                     "answer": ".response-container",
                     "thinking": null,
