@@ -82,7 +82,7 @@
                 "conversation": null,
                 "title": "div.group\\/title",
                 "question": "div[class*=\"send-msg-bubble\"], div[class*=\"bg-g-send-msg-bubble-bg\"]",
-                "answer": "div[class*=\"conversation-page-message-host\"]",
+                "answer": "div[class*=\"md-box-root\"]",
                 "thinking": null,
                 "HEADINGS": [
                     "h1",
